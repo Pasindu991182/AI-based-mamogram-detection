@@ -70,7 +70,14 @@ uvicorn app.main:app --reload
 ```
 API docs available at `http://localhost:8000/docs`.
 
-> **Model weights:** the pretrained `.keras` segmentation model and the large ER-ensemble `.pkl` are excluded from git (see `.gitignore`) due to file-size limits. Place your trained weights in `birads-backend/ml_weights/` before running Tier 1/5 — see `birads-backend/README.md` for the exact filenames expected.
+> **Model weights not in this repo.** Two trained model files are too large for GitHub (100 MB hard limit) and are excluded via `.gitignore`. Download them separately and place them in `birads-backend/ml_weights/`:
+>
+> | File | Size | Used by | Download |
+> |------|------|---------|----------|
+> | `resnet50_unet_inbreast_final.keras` | 241 MB | Tier 1 — segmentation | *link TBD* |
+> | `er_ensemble.pkl` | 51 MB | Tier 5 — ER-status prediction | *link TBD* |
+>
+> All other weights (`acr_scaler.pkl`, `acr_xgb_model.pkl`, `scaler.pkl`, `xgboost_model.pkl`) are small enough to ship in git and are already present in `birads-backend/ml_weights/`.
 
 To enable the Tier 6 assistant, build the guideline knowledge base once:
 ```bash
