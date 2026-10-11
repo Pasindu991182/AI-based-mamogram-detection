@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* ExBI-RADS brand palette (teal, derived from #0f9b8e). */
+@theme {
+  --color-brand-50: #eef9f6;
+  --color-brand-100: #d3f0ea;
+  --color-brand-200: #a8e1d6;
+  --color-brand-300: #6fccbd;
+  --color-brand-400: #34b1a0;
+  --color-brand-500: #14b3a3;
+  --color-brand-600: #0f9b8e;
+  --color-brand-700: #0f7a6f;
+  --color-brand-800: #115f57;
+  --color-brand-900: #0f3f3a;
+}
+
+:root {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: #f1f5f4;
+  color: #0f172a;
+}
+
+/* Accessible focus rings. */
+*:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 1px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+/* --- Landing page motion --- */
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-16px, 24px) scale(1.05); }
+}
+@keyframes float-slower {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -18px) scale(1.08); }
+}
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
+.animate-float-slower { animation: float-slower 12s ease-in-out infinite; }
+.animate-fade-slide-up { animation: fade-slide-up 0.8s ease-out both; }
+.animate-pulse-ring { animation: pulse-ring 2.2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite; }

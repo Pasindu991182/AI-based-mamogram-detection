@@ -17,10 +17,6 @@ PDF_URLS = [
     "https://www.nccn.org/patients/guidelines/content/PDF/breastcancerscreening-patient.pdf",
     "https://www.nccn.org/patients/guidelines/content/PDF/breast-invasive-patient.pdf",
     "https://www.nccn.org/patients/guidelines/content/PDF/stage_iv_breast-patient.pdf",
-        # ---- WHO Global Breast Cancer Initiative ----
-    "https://iris.who.int/bitstream/handle/10665/366385/9789240065987-eng.pdf?sequence=1",
-    # ---- CAP Breast Biomarker Reporting ----
-    "https://documents.cap.org/protocols/cp-breast-biomarker-20-1400.pdf",
 ]
 
 # Guideline web pages (HTML).
@@ -31,21 +27,4 @@ WEB_URLS = [
     "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2797737/",
     # ---- Receptor testing (Tier 5 ER prediction) ----
     "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10791807/",
-        # ---- ACR BI-RADS ----
-    "https://www.acr.org/Clinical-Resources/Clinical-Tools-and-Reference/Reporting-and-Data-Systems/BI-RADS",
-    # ---- BI-RADS v2025: Mammography Updates ----
-    "https://pmc.ncbi.nlm.nih.gov/articles/PMC13266138/",
-    # ---- BI-RADS: Advantages and Limitations ----
-    "https://pmc.ncbi.nlm.nih.gov/articles/PMC9935970/",
-    # ---- Practical Guide to BI-RADS v2025 ----
-    "https://pmc.ncbi.nlm.nih.gov/articles/PMC13361901/",
-    # ---- WHO Global Breast Cancer Initiative ----
-    "https://www.who.int/initiatives/global-breast-cancer-initiative",
-  # ---- ACR Digital Mammography Quality Control ----
-    "https://www.acr.org/Accreditation/Resources/Digital-Mammography-QC-Manual",
-    # ---- CAP Current Cancer Protocols ----
-    "https://www.cap.org/protocols-and-guidelines/cancer-protocols/current-cancer-protocols/",
-    # ---- USPSTF Breast Cancer Screening ----
-    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening",
-
 ]
