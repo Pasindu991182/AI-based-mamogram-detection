@@ -1,5 +1,13 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { FiLayers, FiLogOut, FiPlus, FiPlusCircle, FiUser } from "react-icons/fi";
+import {
+  FiKey,
+  FiLayers,
+  FiLogOut,
+  FiPlus,
+  FiPlusCircle,
+  FiShield,
+  FiUser,
+} from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 import Brand from "@/components/Brand";
 import Button from "@/components/Button";
@@ -11,8 +19,7 @@ const navItems = [
   { to: "/worklist", label: "Worklist", icon: FiLayers, end: false },
   { to: "/study", label: "New study", icon: FiPlusCircle, end: false },
 ];
-// Desktop top-tabs: "New study" lives in the CTA button, so only show Worklist here.
-const desktopNav = navItems.slice(0, 1);
+const adminItem = { to: "/admin", label: "Admin", icon: FiShield, end: false };
 
 function NavItem({ to, label, icon: Icon, end }) {
   return (
@@ -50,6 +57,10 @@ function NavItem({ to, label, icon: Icon, end }) {
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
+  const mobileNav = isAdmin ? [...navItems, adminItem] : navItems;
+  // Desktop top-tabs: "New study" lives in the CTA button, so it is left out here.
+  const desktopNav = isAdmin ? [navItems[0], adminItem] : [navItems[0]];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f1f5f4]">
@@ -107,20 +118,19 @@ export default function Layout({ children }) {
                   <FiUser size={10} /> {user?.role ?? "radiologist"}
                 </div>
               </div>
-              {user?.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="h-9 w-9 rounded-full object-cover ring-2 ring-white/25"
-                />
-              ) : (
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-sm font-bold text-white ring-1 ring-white/20">
-                  {user?.name?.[0] ?? "?"}
-                </span>
-              )}
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-sm font-bold text-white ring-1 ring-white/20">
+                {user?.name?.[0] ?? "?"}
+              </span>
+              <Link
+                to="/change-password"
+                title="Change password"
+                className="grid h-9 w-9 place-items-center rounded-lg text-brand-100 ring-1 ring-white/15 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <FiKey />
+              </Link>
               <button
-                onClick={() => {
-                  logout();
+                onClick={async () => {
+                  await logout();
                   navigate("/login");
                 }}
                 title="Sign out"
@@ -135,7 +145,7 @@ export default function Layout({ children }) {
 
         {/* Mobile nav row */}
         <nav className="flex gap-1 border-t border-white/10 px-3 py-1.5 sm:hidden">
-          {navItems.map(({ to, label, icon: Icon, end }) => (
+          {mobileNav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

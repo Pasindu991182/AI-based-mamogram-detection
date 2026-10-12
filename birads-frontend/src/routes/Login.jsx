@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { GoogleLogin } from "@react-oauth/google";
 import { Navigate, useNavigate } from "react-router-dom";
-import { FiLock, FiShield } from "react-icons/fi";
-import { FcGoogle } from "react-icons/fc";
+import { FiLock, FiLogIn, FiShield } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
+import { errorMessage } from "@/lib/api";
+import Button from "@/components/Button";
 import Brand from "@/components/Brand";
 import doctorImg from "@/assets/doctorimage.png";
 
@@ -14,10 +14,33 @@ const PIPELINE = [
   ["Predict", "ER status for early treatment planning"],
 ];
 
+const labelCls =
+  "mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500";
+const inputCls =
+  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium focus:border-brand-500 focus:outline-none";
+
 export default function Login() {
-  const { user, loginWithGoogleCredential } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      navigate("/");
+    } catch (err) {
+      setError(errorMessage(err, "Could not reach the server. Please try again."));
+      setPassword("");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (user) return <Navigate to="/" replace />;
 
@@ -80,37 +103,49 @@ export default function Login() {
             Sign in
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Use your hospital Google account to continue. Every study is signed
+            Use the account issued by your administrator. Every study is signed
             to a named radiologist.
           </p>
 
-          <div className="mt-8 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span className="flex items-center gap-1.5">
-              <FcGoogle size={16} /> Continue with Google
-            </span>
-            <span className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          <div className="mt-5 flex justify-center">
-            <GoogleLogin
-              shape="pill"
-              width="320"
-              onSuccess={async (cred) => {
-                try {
-                  if (!cred.credential) throw new Error("No credential");
-                  await loginWithGoogleCredential(cred.credential);
-                  navigate("/");
-                } catch {
-                  setError("Login failed. Please try again.");
-                }
-              }}
-              onError={() => setError("Google sign-in was cancelled or failed.")}
-            />
-          </div>
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <label className="block">
+              <span className={labelCls}>Email</span>
+              <input
+                type="email"
+                autoComplete="username"
+                required
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls}
+              />
+            </label>
+            <label className="block">
+              <span className={labelCls}>Password</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputCls}
+              />
+            </label>
+            <Button
+              type="submit"
+              icon={FiLogIn}
+              disabled={submitting}
+              className="w-full"
+            >
+              {submitting ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
 
           {error && (
-            <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">
+            <p
+              role="alert"
+              className="mt-6 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700"
+            >
               {error}
             </p>
           )}

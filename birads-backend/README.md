@@ -1,7 +1,7 @@
 # BI-RADS Diagnostic Engine — Backend
 
 Professional FastAPI backend for the Explainable BI-RADS Morphological Scoring
-Engine. Implements a transparent, 6-tier clinical pipeline plus Google OAuth.
+Engine. Implements a transparent, 6-tier clinical pipeline plus email/password authentication.
 
 ## Architecture (6 Tiers)
 
@@ -14,8 +14,9 @@ Engine. Implements a transparent, 6-tier clinical pipeline plus Google OAuth.
 | 5 | ER status prediction (ER+/ER−) from 7 clinical inputs | Trained ensemble (`.pkl`) → heuristic fallback | `POST /api/v1/er/predict` |
 | 6 | Clinical RAG assistant (guideline Q&A) | LangChain + OpenAI + FAISS | `POST /api/v1/chat` |
 
-Auth: `POST /api/v1/auth/google` (Google ID token → app JWT). All tier
-endpoints require `Authorization: Bearer <jwt>`.
+Auth: `POST /api/v1/auth/login` (email + password → 15-minute access JWT, plus a
+revocable session in an `httpOnly` cookie). All tier endpoints require
+`Authorization: Bearer <jwt>`. Accounts are created by an administrator only.
 
 ### How the pipeline runs (Tiers 1–3)
 
@@ -59,7 +60,10 @@ The overall case BI-RADS is the most severe across the analysed views.
 cd birads-backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # then set GOOGLE_CLIENT_ID + JWT_SECRET (see .env below)
+cp .env.example .env          # then set JWT_SECRET + POSTGRES_PASSWORD/DATABASE_URL (see .env below)
+docker compose up -d db       # PostgreSQL, bound to 127.0.0.1 only
+alembic upgrade head          # create the schema
+python -m scripts.create_user --email you@hospital.lk --name "Your Name" --role admin
 uvicorn app.main:app          # ⚠️ do NOT use --reload — see note below
 ```
 
@@ -88,11 +92,13 @@ The small weights (`acr_scaler.pkl`, `acr_xgb_model.pkl`, `scaler.pkl`,
 
 | Key | Purpose |
 |-----|---------|
-| `GOOGLE_CLIENT_ID` | Google OAuth Web Client ID (same as the frontend) |
-| `JWT_SECRET` | App session-token signing secret |
+| `JWT_SECRET` | Token + media-link signing secret. Must be random and ≥ 32 chars; the API refuses to start in production otherwise |
+| `DATA_ENCRYPTION_KEY` | 32-byte base64url key that encrypts stored patient images. Required in production |
+| `POSTGRES_PASSWORD` / `DATABASE_URL` | PostgreSQL credentials (compose) and connection URL (API) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_HOURS` | Access-token and session lifetimes (default `15` / `12`) |
+| `MAX_FAILED_LOGINS` / `LOCKOUT_MINUTES` | Brute-force lockout (default `5` / `15`) |
 | `OPENAI_API_KEY` | *(optional)* enables the NLP report Impression + Tier 6 assistant |
-| `STORAGE_BACKEND` | `local` (default) or `cloudinary` |
-| `CLOUDINARY_*` | *(optional)* persistent image storage; falls back to local disk |
+| `MEDIA_URL_TTL_SECONDS` | Signed image-link lifetime, seconds (default `900`) |
 
 ## Image storage
 
@@ -101,8 +107,15 @@ segmentation overlay and mask are uploaded via the storage backend and their
 URLs saved on the case/analysis rows — so a case can be re-opened later with all
 its images intact.
 
-- `STORAGE_BACKEND=local` → files written to `uploads/`, served at `/uploads/...`
-- `STORAGE_BACKEND=cloudinary` → uploaded to Cloudinary, permanent `https://res.cloudinary.com/...` URLs
+- Images are stored **inside the database** (`stored_files` table), each encrypted with
+  AES-256-GCM under `DATA_ENCRYPTION_KEY` and bound to its own path. No image file is
+  left readable on the server's disk, and one database backup covers everything.
+- They are decrypted on the way out and served from `/uploads/...` **only with a valid signed link**.
+- Deleting a case deletes its images.
+- **Back up `DATA_ENCRYPTION_KEY` separately from the database** — without it the images
+  cannot be recovered; with only the database, they cannot be read.
+  Links are minted per API response and expire after `MEDIA_URL_TTL_SECONDS`; an unsigned or
+  expired request returns `403`. There is no public static mount.
 
 Uploads never break the analysis — a storage failure is logged and the response
 still returns.
@@ -143,8 +156,16 @@ python -m scripts.build_rag_index
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/v1/auth/google` | Google ID token → app JWT |
+| POST | `/api/v1/auth/login` | Email + password → access JWT + session cookie |
+| POST | `/api/v1/auth/refresh` | Session cookie → new access JWT |
+| POST | `/api/v1/auth/logout` | Revoke the session |
+| POST | `/api/v1/auth/change-password` | Change own password (signs out other devices) |
 | GET  | `/api/v1/auth/me` | Current user |
+| GET  | `/api/v1/admin/overview` | *(admin)* Account, session and case counts (no patient data) |
+| GET  | `/api/v1/admin/audit` | *(admin)* Recent security events (sign-ins, lockouts, account changes) |
+| GET / POST | `/api/v1/admin/users` | *(admin)* List / create accounts |
+| PATCH | `/api/v1/admin/users/{id}` | *(admin)* Rename, change role, (de)activate |
+| POST | `/api/v1/admin/users/{id}/reset-password` | *(admin)* Issue a temporary password |
 | POST | `/api/v1/analyze` | Tiers 1–3 (segment, features, BI-RADS) |
 | POST | `/api/v1/report/generate` | Tier 4 report (NLP Impression) |
 | PUT  | `/api/v1/report/{id}` | Save / finalize (sign off) a report |
@@ -158,14 +179,14 @@ python -m scripts.build_rag_index
 
 ```
 app/
-├── main.py              # app, CORS, static uploads, lifespan
-├── core/                # config, security (JWT + Google), logging
+├── main.py              # app, CORS, signed image route, lifespan
+├── core/                # config, security (JWT + Argon2 passwords), logging
 ├── api/v1/              # auth, analyze, report, er_status, cases, chat
 ├── services/            # tier1..tier5 + pipeline + nlp_report + model_registry
 │   └── rag/             # Tier 6: engine, ingest, knowledge_sources
 ├── models/  schemas/    # SQLAlchemy tables + Pydantic contracts
 ├── db/                  # engine, session, base
-├── storage/             # local + cloudinary (swap via STORAGE_BACKEND)
+├── storage/             # encrypted database storage (+ plain local, debug only)
 └── utils/imaging.py
 ml_weights/              # trained .keras + .pkl artefacts (large ones .gitignored)
 scripts/                 # build_rag_index.py
@@ -174,15 +195,23 @@ alembic/                 # migrations
 
 ## Database
 
-SQLite by default (`birads.db`). Tables auto-create on startup for dev.
-For production, switch `DATABASE_URL` to Postgres and use Alembic:
+PostgreSQL, with the schema managed by Alembic:
 
 ```bash
-alembic revision --autogenerate -m "init"
-alembic upgrade head
+docker compose up -d db                             # start PostgreSQL
+alembic upgrade head                                # create / upgrade tables
+alembic revision --autogenerate -m "describe it"    # after changing a model
 ```
 
-Schema: `users → cases → { analyses, reports, er_predictions }` with foreign
+No Docker? Any PostgreSQL 14+ server works — e.g. `brew install postgresql@17`,
+create a `birads` role and database, and point `DATABASE_URL` at its host/port.
+
+If `DATABASE_URL` is left unset the API falls back to a local SQLite file and
+auto-creates the tables — this exists only for the test suite and a first look.
+
+Schema: `users → refresh_tokens` (sign-in sessions), `audit_logs` (security
+events) and
+`users → cases → { analyses, reports, er_predictions }` with foreign
 keys and cascade-delete (deleting a case removes its analysis, report and ER row).
 
 ## Tier 4 / Tier 5 model notes

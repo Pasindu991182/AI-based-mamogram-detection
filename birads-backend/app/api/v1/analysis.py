@@ -88,7 +88,14 @@ def _persist_analysis(db: Session, case: Case, result: AnalysisResponse) -> None
         analysis.density_score = wc.density_score
     analysis.birads_code = result.overall_birads_code
     analysis.birads_label = result.overall_birads_label
-    analysis.raw_payload = result.model_dump_json()
+    # Rendered images are stored encrypted below, never inline in this JSON.
+    analysis.raw_payload = result.model_dump_json(
+        exclude={
+            "analyzed_views": {
+                "__all__": {"overlay_image_base64", "mask_image_base64"}
+            }
+        }
+    )
 
     # Upload overlay + mask (first view that has them) to storage.
     storage = get_storage()

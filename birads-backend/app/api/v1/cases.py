@@ -6,6 +6,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.case import Case
 from app.models.user import User
+from app.storage import get_storage
 from app.schemas.case import CaseCreate, CaseDetail, CaseOut, CaseUpdate
 
 router = APIRouter(prefix="/cases", tags=["cases"])
@@ -95,3 +96,4 @@ def delete_case(
     case = _owned_case(case_id, db, current_user)
     db.delete(case)  # cascades to analysis / report / er_prediction
     db.commit()
+    get_storage().delete_prefix(f"cases/{case_id}/")

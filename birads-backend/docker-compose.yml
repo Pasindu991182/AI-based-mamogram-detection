@@ -1,0 +1,27 @@
+# PostgreSQL for the ExBI-RADS backend.
+#
+#   docker compose up -d db      # start the database
+#   alembic upgrade head         # create / upgrade the schema
+#
+# POSTGRES_PASSWORD is read from birads-backend/.env (never commit that file).
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: birads
+      POSTGRES_DB: birads
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      # Bound to loopback only: the database is never reachable from the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - birads_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U birads -d birads"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  birads_pgdata:

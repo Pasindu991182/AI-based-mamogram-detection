@@ -28,22 +28,23 @@ Every tier's output is stored against the patient case, so a radiologist can re-
 ```
 AI-based-mamogram-detection/
 ├── birads-backend/     FastAPI · SQLAlchemy · TensorFlow/Keras · XGBoost · LangChain
-└── birads-frontend/    React 18 · Vite · Tailwind CSS v4 · Google OAuth
+└── birads-frontend/    React 18 · Vite · Tailwind CSS v4
 ```
 
-Two independently deployable services communicating over a REST API. Authentication is Google OAuth end to end — the frontend obtains a Google ID token, the backend verifies it and issues its own signed session token.
+Two independently deployable services communicating over a REST API. Authentication is self-contained — no third-party identity provider. Accounts are issued by an administrator (there is no public sign-up); users sign in with email + password (Argon2id-hashed, with lockout after repeated failures) and receive a 15-minute access JWT held only in browser memory, backed by a revocable server-side session in an `httpOnly`, `SameSite=Strict` cookie.
 
 ### Backend — `birads-backend/`
 
 - **FastAPI** REST API with routers per tier (`/analyze`, `/report`, `/er-status`, `/chat`, `/cases`)
-- **SQLAlchemy + Alembic** — SQLite for development, swappable to PostgreSQL for production via a single environment variable
-- **Cloudinary** for persistent image storage (originals, segmentation masks, overlays)
+- **SQLAlchemy + Alembic on PostgreSQL** (`docker compose up -d db`, then `alembic upgrade head`)
+- **Encrypted-at-rest image storage inside the database** (AES-256-GCM, one key held outside the database), served only through short-lived signed URLs (originals, segmentation masks, overlays) — nothing leaves the hospital's own server
 - **Model weights** — a pretrained segmentation network, an ACR-density classifier, a BI-RADS-support classifier and an ER-status ensemble live in `ml_weights/` (large binary weights are `.gitignore`-excluded; see [Setup](#setup) below)
 
 ### Frontend — `birads-frontend/`
 
 - **React 18 + Vite** SPA styled with **Tailwind CSS v4**
-- **Google Sign-In** (`@react-oauth/google`) — every study is signed to a named, authenticated radiologist
+- **Email + password sign-in** with admin-issued accounts and a forced password change at first login — every study is signed to a named, authenticated radiologist
+- An admin-only **Users** screen to add, deactivate and reset accounts
 - A guided, multi-step **Study wizard** (Upload → Segment → Features → BI-RADS → ER Status → Report)
 - A **Worklist** with search/filter (by BI-RADS category, ER status, sign-off status), per-patient history, and case detail views
 - **PDF export** (`jsPDF`) of the signed radiology report
@@ -55,9 +56,8 @@ Two independently deployable services communicating over a REST API. Authenticat
 
 ### Prerequisites
 - Python 3.11+ and Node 18+
-- A Google Cloud OAuth 2.0 Web Client ID
+- Docker (for PostgreSQL), or an existing PostgreSQL 14+ server
 - (Optional) An OpenAI API key — enables the NLP report Impression and the Tier 6 assistant; both gracefully fall back without it
-- (Optional) A Cloudinary account — enables persistent image storage; falls back to local disk without it
 
 ### 1. Backend
 
@@ -65,8 +65,11 @@ Two independently deployable services communicating over a REST API. Authenticat
 cd birads-backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # fill in GOOGLE_CLIENT_ID, JWT_SECRET, and (optionally) OPENAI_API_KEY / Cloudinary keys
-uvicorn app.main:app --reload
+cp .env.example .env        # set JWT_SECRET, POSTGRES_PASSWORD + DATABASE_URL, and (optionally) OPENAI_API_KEY
+docker compose up -d db     # PostgreSQL on 127.0.0.1:5432
+alembic upgrade head        # create the schema
+python -m scripts.create_user --email you@hospital.lk --name "Your Name" --role admin
+uvicorn app.main:app
 ```
 API docs available at `http://localhost:8000/docs`.
 
@@ -89,7 +92,7 @@ python -m scripts.build_rag_index
 ```bash
 cd birads-frontend
 npm install
-cp .env.example .env        # set VITE_API_URL and VITE_GOOGLE_CLIENT_ID (same client ID as the backend)
+cp .env.example .env        # set VITE_API_URL
 npm run dev
 ```
 App available at `http://localhost:5173`.
@@ -106,8 +109,8 @@ App available at `http://localhost:5173`.
 
 ## Tech Stack
 
-**Backend:** FastAPI · SQLAlchemy · Alembic · TensorFlow/Keras · OpenCV · scikit-learn · XGBoost · LangChain · FAISS · Cloudinary
-**Frontend:** React 18 · Vite · Tailwind CSS v4 · React Router · jsPDF · Google OAuth
+**Backend:** FastAPI · PostgreSQL · SQLAlchemy · Alembic · PyJWT · Argon2 · TensorFlow/Keras · OpenCV · scikit-learn · XGBoost · LangChain · FAISS
+**Frontend:** React 18 · Vite · Tailwind CSS v4 · React Router · jsPDF
 
 ---
 

@@ -32,7 +32,7 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create all tables (dev convenience; use Alembic for production)."""
+    """Create all tables on SQLite. PostgreSQL uses Alembic migrations."""
     from app.db.base import Base, import_models
 
     import_models()

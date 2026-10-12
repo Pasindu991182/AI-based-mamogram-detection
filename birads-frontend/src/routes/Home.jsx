@@ -234,7 +234,6 @@ export default function Home() {
               name: user?.name || "Pasindu Iroshan",
               role: "Lead developer",
               desc: "Pipeline architecture, segmentation and white-box classifier.",
-              photo: user?.picture,
             },
             { name: "Team member", role: "Role", desc: "Edit this card with their focus area." },
             { name: "Team member", role: "Role", desc: "Edit this card with their focus area." },

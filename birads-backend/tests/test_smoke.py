@@ -1,4 +1,4 @@
-"""Smoke tests that run without the heavy ML models or a Google client."""
+"""Smoke tests that run without the heavy ML models or a running database server."""
 from app.schemas.analysis import RadiomicFeatures
 from app.schemas.er_status import ERPredictRequest
 from app.services import tier4_report, tier5_er_status

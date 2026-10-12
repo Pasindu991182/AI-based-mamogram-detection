@@ -22,4 +22,12 @@ class TimestampMixin:
 
 # Import models here so Alembic autogenerate / create_all sees every table.
 def import_models() -> None:  # pragma: no cover - side-effect import
-    from app.models import analysis, case, er_prediction, report, user  # noqa: F401
+    from app.models import (  # noqa: F401
+        analysis,
+        audit_log,
+        case,
+        er_prediction,
+        report,
+        stored_file,
+        user,
+    )

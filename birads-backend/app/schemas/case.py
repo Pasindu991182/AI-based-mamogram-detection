@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.core.media_token import to_signed_url
 from app.schemas.analysis import RadiomicFeatures
 from app.schemas.report import FeatureRow
 
@@ -57,8 +58,8 @@ class CaseOut(BaseModel):
             id=case.id,
             patient_ref=case.patient_ref,
             patient_age=case.patient_age,
-            cc_image_url=case.cc_image_url,
-            mlo_image_url=case.mlo_image_url,
+            cc_image_url=to_signed_url(case.cc_image_url),
+            mlo_image_url=to_signed_url(case.mlo_image_url),
             status=case.status,
             created_at=case.created_at,
             views=views,
@@ -143,8 +144,8 @@ class CaseDetail(BaseModel):
                 )
                 rows = feature_rows(features)
             analysis_detail = AnalysisDetail(
-                mask_url=analysis.mask_url,
-                overlay_url=analysis.overlay_url,
+                mask_url=to_signed_url(analysis.mask_url),
+                overlay_url=to_signed_url(analysis.overlay_url),
                 features=features,
                 feature_rows=rows,
                 birads_code=analysis.birads_code,
@@ -186,8 +187,8 @@ class CaseDetail(BaseModel):
             id=case.id,
             patient_ref=case.patient_ref,
             patient_age=case.patient_age,
-            cc_image_url=case.cc_image_url,
-            mlo_image_url=case.mlo_image_url,
+            cc_image_url=to_signed_url(case.cc_image_url),
+            mlo_image_url=to_signed_url(case.mlo_image_url),
             status=case.status,
             created_at=case.created_at,
             analysis=analysis_detail,
