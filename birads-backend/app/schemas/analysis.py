@@ -52,6 +52,8 @@ class ViewAnalysis(BaseModel):
     birads_label: Optional[str] = None
 
 
+from app.schemas.cbr import CbrAnalysisResult
+
 class AnalysisResponse(BaseModel):
     status: str = "success"
     case_id: Optional[int] = None
@@ -60,4 +62,5 @@ class AnalysisResponse(BaseModel):
     overall_birads_code: Optional[int] = None
     overall_birads_label: Optional[str] = None
     explanation: Optional[BiRadsExplanation] = None
+    cbr_result: Optional[CbrAnalysisResult] = None
     analyzed_views: list[ViewAnalysis] = []

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FiCheckCircle, FiCpu, FiDownload, FiPrinter, FiSave } from "react-icons/fi";
+import CbrPanel from "./CbrPanel";
 
 function SectionTitle({ n, children }) {
   return (
@@ -14,6 +15,7 @@ function SectionTitle({ n, children }) {
 
 export default function ReportStep({
   document: doc,
+  cbrResult,
   generator,
   value,
   onChange,
@@ -25,6 +27,18 @@ export default function ReportStep({
 }) {
   const isNlp = (generator || "").startsWith("nlp");
   const [exporting, setExporting] = useState(false);
+
+  const cbrPayload =
+    cbrResult ||
+    (doc?.cbr?.matches?.length > 0
+      ? {
+          matches: doc.cbr.matches,
+          biopsy_concordance: doc.cbr.concordance,
+          malignant_count: doc.cbr.matches.filter((m) => m.is_malignant).length,
+          actionable_recommendation: doc.cbr.recommendation,
+          clinical_rationale: "",
+        }
+      : null);
 
   async function handleExport() {
     setExporting(true);
@@ -125,10 +139,20 @@ export default function ReportStep({
             </>
           )}
 
-          {/* 4. ER status */}
+          {/* 4. Case-Based Reasoning (CBR) Precedents */}
+          {cbrPayload && (
+            <>
+              <SectionTitle n={4}>
+                Case-Based Reasoning (CBR) · Historical Patient Twins
+              </SectionTitle>
+              <CbrPanel cbr={cbrPayload} className="mt-2" hideTitle={true} />
+            </>
+          )}
+
+          {/* 5. ER status */}
           {doc?.er && (
             <>
-              <SectionTitle n={4}>ER Status Prediction · Tier 4 — ensemble model</SectionTitle>
+              <SectionTitle n={5}>ER Status Prediction · Tier 5 — ensemble model</SectionTitle>
               <table className="w-full overflow-hidden rounded-lg border border-slate-200 text-sm">
                 <tbody>
                   {[
@@ -149,8 +173,8 @@ export default function ReportStep({
             </>
           )}
 
-          {/* 5. Impression (editable NLP narrative) */}
-          <SectionTitle n={5}>
+          {/* 6. Impression (editable NLP narrative) */}
+          <SectionTitle n={6}>
             Impression
             <span
               className={`ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${

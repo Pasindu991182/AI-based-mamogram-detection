@@ -149,6 +149,22 @@ export async function analyze(patientAge, ccFile, mloFile, caseId) {
   return data;
 }
 
+// ---- CBR (Case-Based Reasoning) ----
+export async function getSimilarCases(features, biradsCode, patientAge, topK = 3) {
+  const { data } = await api.post("/cbr/similar-cases", {
+    features,
+    birads_code: biradsCode,
+    patient_age: patientAge,
+    top_k: topK,
+  });
+  return data;
+}
+
+export async function getCbrReferenceLibrary() {
+  const { data } = await api.get("/cbr/reference-library");
+  return data;
+}
+
 // ---- Tier 4 ----
 export async function generateReport(payload) {
   const { data } = await api.post("/report/generate", payload);

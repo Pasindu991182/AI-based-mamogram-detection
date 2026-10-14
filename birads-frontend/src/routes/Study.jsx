@@ -278,6 +278,7 @@ export default function Study() {
           {step === 5 && (
             <ReportStep
               document={reportDoc}
+              cbrResult={result?.cbr_result}
               generator={reportGen}
               value={reportText}
               onChange={setReportText}

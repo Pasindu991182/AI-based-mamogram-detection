@@ -146,9 +146,39 @@ export function exportReportPdf({ document: doc, impression, generator }) {
     });
   }
 
-  // ---- 4. ER status ----
+  // ---- 4. Case-Based Reasoning (CBR) Precedents ----
+  if (doc?.cbr) {
+    heading(4, "Case-Based Reasoning (CBR) · Historical Biopsy Precedents");
+    paragraph(`Precedent Concordance: ${doc.cbr.concordance}`, { bold: true });
+    paragraph(`ACR Recommendation: ${doc.cbr.recommendation}`);
+    if (doc.cbr.matches?.length) {
+      autoTable(pdf, {
+        startY: y,
+        margin: { left: M, right: M },
+        head: [["Case ID", "Match %", "Historical BI-RADS", "Biopsy Proven Outcome"]],
+        body: doc.cbr.matches.map((m) => [
+          m.case_id,
+          `${m.similarity_percentage}%`,
+          m.ground_truth_birads,
+          m.biopsy_outcome,
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: TEAL, textColor: 255, fontSize: 8.5 },
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: SLATE },
+        columnStyles: {
+          0: { fontStyle: "bold", cellWidth: 80 },
+          1: { fontStyle: "bold", textColor: DARK, cellWidth: 55 },
+          2: { cellWidth: 110 },
+          3: { fontStyle: "bold" },
+        },
+      });
+      y = pdf.lastAutoTable.finalY + 14;
+    }
+  }
+
+  // ---- 5. ER status ----
   if (doc?.er) {
-    heading(4, "ER Status Prediction · Tier 4 — ensemble model");
+    heading(5, "ER Status Prediction · Tier 5 — ensemble model");
     autoTable(pdf, {
       startY: y,
       margin: { left: M, right: M },
@@ -167,8 +197,8 @@ export function exportReportPdf({ document: doc, impression, generator }) {
     y = pdf.lastAutoTable.finalY + 16;
   }
 
-  // ---- 5. Impression ----
-  heading(5, "Impression");
+  // ---- 6. Impression ----
+  heading(6, "Impression");
   paragraph(impression || doc?.impression || "—");
 
   // ---- Footer on every page ----

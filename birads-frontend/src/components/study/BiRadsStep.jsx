@@ -1,4 +1,5 @@
 const MEANING = {
+  1: ["Negative", "routine screening", "text-emerald-600", "bg-emerald-50"],
   2: ["Benign", "benign finding", "text-emerald-600", "bg-emerald-50"],
   3: ["Probably benign", "short-interval follow-up", "text-amber-600", "bg-amber-50"],
   4: ["Suspicious", "high suspicion of malignancy", "text-orange-600", "bg-orange-50"],
@@ -33,9 +34,9 @@ export default function BiRadsStep({ result }) {
           <div className="mt-1 text-xs text-slate-500">{sub}</div>
         </div>
 
-        {/* Scale 2..5 */}
+        {/* Scale 1..5 */}
         <div className="mt-4 flex overflow-hidden rounded-lg border border-slate-200">
-          {[2, 3, 4, 5].map((n) => (
+          {[1, 2, 3, 4, 5].map((n) => (
             <div
               key={n}
               className={`flex-1 py-2 text-center font-mono text-sm font-bold ${
@@ -49,7 +50,7 @@ export default function BiRadsStep({ result }) {
           ))}
         </div>
         <div className="mt-1.5 flex justify-between font-mono text-[10px] text-slate-400">
-          <span>benign</span>
+          <span>negative / benign</span>
           <span>malignant</span>
         </div>
         {result.overall_birads_label && (
