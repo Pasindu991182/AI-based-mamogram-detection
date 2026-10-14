@@ -1,4 +1,4 @@
-"""Storage factory — pick the backend from settings."""
+"""Storage factory. Patient images live encrypted in the database by default."""
 from functools import lru_cache
 
 from app.core.config import settings
@@ -7,10 +7,11 @@ from app.storage.base import StorageBackend
 
 @lru_cache
 def get_storage() -> StorageBackend:
-    if settings.STORAGE_BACKEND == "cloudinary":
-        from app.storage.cloudinary_storage import CloudinaryStorage
+    if settings.STORAGE_BACKEND == "local":
+        from app.storage.local_storage import LocalStorage
 
-        return CloudinaryStorage()
-    from app.storage.local_storage import LocalStorage
+        return LocalStorage()
 
-    return LocalStorage()
+    from app.storage.database_storage import DatabaseStorage
+
+    return DatabaseStorage()

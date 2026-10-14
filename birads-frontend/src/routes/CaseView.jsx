@@ -8,7 +8,7 @@ import {
   FiCheckCircle,
   FiImage,
 } from "react-icons/fi";
-import { getCaseDetail } from "@/lib/api";
+import { getCaseDetail, mediaUrl } from "@/lib/api";
 
 function biradsChip(code) {
   if (code == null) return "bg-slate-100 text-slate-500 border-slate-200";
@@ -26,7 +26,7 @@ function ImageCard({ label, url }) {
       </div>
       <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-slate-200 bg-black">
         {url ? (
-          <img src={url} alt={label} className="h-full w-full object-contain" />
+          <img src={mediaUrl(url)} alt={label} className="h-full w-full object-contain" />
         ) : (
           <div className="flex flex-col items-center gap-1.5 text-slate-500">
             <FiImage size={22} />

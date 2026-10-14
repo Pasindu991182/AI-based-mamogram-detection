@@ -11,7 +11,8 @@ from app.db.base import Base, import_models
 import_models()
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# `%` (e.g. in a URL-encoded password) must be escaped for configparser.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

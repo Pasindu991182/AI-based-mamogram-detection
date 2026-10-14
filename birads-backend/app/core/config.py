@@ -7,11 +7,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List
 
-from pydantic import Field
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # birads-backend/  (two parents up from app/core/config.py)
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+DEFAULT_JWT_SECRET = "change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -28,26 +30,39 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # --- Security / Auth ---
-    JWT_SECRET: str = "change-me-in-production"
+    JWT_SECRET: str = DEFAULT_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
-    GOOGLE_CLIENT_ID: str = ""  # OAuth client id (web)
+    # Short-lived access token, held in browser memory only. The session
+    # itself lives in a server-side, revocable refresh token (httpOnly cookie).
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_HOURS: int = 12  # one working shift
+    REFRESH_COOKIE_NAME: str = "birads_refresh"
+
+    # Password policy + brute-force lockout
+    PASSWORD_MIN_LENGTH: int = 12
+    MAX_FAILED_LOGINS: int = 5
+    LOCKOUT_MINUTES: int = 15
 
     # Comma-separated list of allowed frontend origins for CORS.
     BACKEND_CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     # --- Database ---
-    # SQLite for dev; switch to postgresql+psycopg://... for production.
+    # PostgreSQL is the supported database (see docker-compose.yml):
+    #   postgresql+psycopg://birads:<password>@localhost:5432/birads
+    # The SQLite default only exists so tests and a first boot work unconfigured.
     DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'birads.db'}"
 
     # --- Storage ---
-    # "local" or "cloudinary"
-    STORAGE_BACKEND: str = "local"
+    # Patient images are stored AES-256-GCM encrypted in the database and served
+    # only through signed, expiring URLs (see app/core/media_token.py).
+    # "database" (default) | "local" (plain files, debugging only)
+    STORAGE_BACKEND: str = "database"
+    # 32 random bytes, base64url. Generate with:
+    #   python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+    # Losing this key makes every stored image unreadable — back it up separately.
+    DATA_ENCRYPTION_KEY: str = ""
     LOCAL_STORAGE_DIR: Path = BASE_DIR / "uploads"
-    CLOUDINARY_CLOUD_NAME: str = ""
-    CLOUDINARY_API_KEY: str = ""
-    CLOUDINARY_API_SECRET: str = ""
-    CLOUDINARY_FOLDER: str = "birads"
+    MEDIA_URL_TTL_SECONDS: int = 900  # 15 minutes
 
     # --- ML weights ---
     ML_WEIGHTS_DIR: Path = BASE_DIR / "ml_weights"
@@ -72,6 +87,25 @@ class Settings(BaseSettings):
     RAG_TOP_K: int = 4
     RAG_CHUNK_SIZE: int = 1000
     RAG_CHUNK_OVERLAP: int = 200
+
+    @model_validator(mode="after")
+    def _refuse_unsafe_production_config(self) -> "Settings":
+        if self.is_production and (
+            self.JWT_SECRET == DEFAULT_JWT_SECRET or len(self.JWT_SECRET) < 32
+        ):
+            raise ValueError(
+                "JWT_SECRET must be a random value of at least 32 characters "
+                "when ENVIRONMENT=production."
+            )
+        if self.is_production and self.STORAGE_BACKEND != "database":
+            raise ValueError("STORAGE_BACKEND must be 'database' in production.")
+        if self.is_production and not self.DATA_ENCRYPTION_KEY:
+            raise ValueError("DATA_ENCRYPTION_KEY must be set when ENVIRONMENT=production.")
+        return self
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
 
     @property
     def cors_origins(self) -> List[str]:
