@@ -60,7 +60,7 @@ The overall case BI-RADS is the most severe across the analysed views.
 cd birads-backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # then set JWT_SECRET + POSTGRES_PASSWORD/DATABASE_URL (see .env below)
+cp -n .env.example .env       # first setup only; -n never overwrites an existing .env. Then set JWT_SECRET + POSTGRES_PASSWORD/DATABASE_URL (see .env below)
 docker compose up -d db       # PostgreSQL, bound to 127.0.0.1 only
 alembic upgrade head          # create the schema
 python -m scripts.create_user --email you@hospital.lk --name "Your Name" --role admin

@@ -65,7 +65,7 @@ Two independently deployable services communicating over a REST API. Authenticat
 cd birads-backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # set JWT_SECRET, POSTGRES_PASSWORD + DATABASE_URL, and (optionally) OPENAI_API_KEY
+cp -n .env.example .env     # FIRST SETUP ONLY (-n never overwrites) — then set JWT_SECRET, POSTGRES_PASSWORD + DATABASE_URL, and (optionally) OPENAI_API_KEY
 docker compose up -d db     # PostgreSQL on 127.0.0.1:5432
 alembic upgrade head        # create the schema
 python -m scripts.create_user --email you@hospital.lk --name "Your Name" --role admin
