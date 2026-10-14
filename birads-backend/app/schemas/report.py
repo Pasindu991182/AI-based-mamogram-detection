@@ -50,6 +50,25 @@ class BiRadsSection(BaseModel):
     recommendation: str
 
 
+class CbrCaseSummary(BaseModel):
+    case_id: str
+    similarity_percentage: float
+    ground_truth_birads: str
+    biopsy_outcome: str
+    is_malignant: bool
+    key_morphology: str
+    patient_age: Optional[int] = 50
+    er_status: Optional[str] = "N/A"
+    clinical_action_taken: Optional[str] = ""
+    thumbnail_svg: Optional[str] = ""
+
+
+class CbrReportSection(BaseModel):
+    concordance: str
+    recommendation: str
+    matches: list[CbrCaseSummary] = []
+
+
 class ReportDocument(BaseModel):
     title: str = "Mammography Radiology Report"
     subtitle: str = (
@@ -59,6 +78,7 @@ class ReportDocument(BaseModel):
     segmentation: str = ""
     features: list[FeatureRow] = []
     birads: BiRadsSection
+    cbr: Optional[CbrReportSection] = None
     er: Optional[ReportERInfo] = None
     impression: str = ""
 

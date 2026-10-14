@@ -5,7 +5,7 @@ from app.schemas.analysis import (
     RadiomicFeatures,
     ViewAnalysis,
 )
-from app.services import tier1_segmentation, tier2_features, tier3_birads
+from app.services import cbr_engine, tier1_segmentation, tier2_features, tier3_birads
 from app.utils.imaging import decode_upload
 
 
@@ -63,6 +63,7 @@ def run(
 
     worst_features = RadiomicFeatures(**worst) if worst else None
     explanation = tier3_birads.build_explanation(worst_features, overall_code)
+    cbr_result = cbr_engine.find_similar_cases(worst_features, overall_code, int(patient_age))
 
     return AnalysisResponse(
         status="success",
@@ -71,5 +72,6 @@ def run(
         overall_birads_code=overall_code,
         overall_birads_label=overall_label,
         explanation=explanation,
+        cbr_result=cbr_result,
         analyzed_views=views,
     )

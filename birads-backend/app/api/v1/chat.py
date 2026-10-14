@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.case import Case
 from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse, ChatStatus
+from app.services import cbr_engine
 from app.services.rag import engine
 
 router = APIRouter(prefix="/chat", tags=["assistant"])
@@ -72,6 +73,9 @@ def _build_case_context(case: Case) -> str:
                 "Morphology: "
                 + ", ".join(f"{k}={v}" for k, v in present.items())
             )
+            cbr_res = cbr_engine.find_similar_cases(present, analysis.birads_code)
+            if cbr_res.matches:
+                lines.append(f"CBR Historical Twins: {cbr_res.biopsy_concordance}")
 
     er = getattr(case, "er_prediction", None)
     if er is not None and er.er_result:

@@ -8,13 +8,15 @@ from datetime import date
 from app.schemas.analysis import RadiomicFeatures
 from app.schemas.report import (
     BiRadsSection,
+    CbrCaseSummary,
+    CbrReportSection,
     FeatureRow,
     MetaItem,
     ReportDocument,
     ReportERInfo,
     ReportPatientMeta,
 )
-from app.services import nlp_report
+from app.services import cbr_engine, nlp_report
 
 BIRADS_MEANING = {
     1: ("BI-RADS 1 (negative)", "Negative — no abnormality.", "Routine screening."),
@@ -159,8 +161,32 @@ def build_report(
     rows = feature_rows(features) if mass else []
     rationale = _birads_rationale(features, code)
 
+    # --- Case-Based Reasoning (CBR) Precedents ---
+    cbr_section = None
+    if mass and features:
+        cbr_res = cbr_engine.find_similar_cases(features, code)
+        cbr_section = CbrReportSection(
+            concordance=cbr_res.biopsy_concordance,
+            recommendation=cbr_res.actionable_recommendation,
+            matches=[
+                CbrCaseSummary(
+                    case_id=m.case_id,
+                    similarity_percentage=m.similarity_percentage,
+                    ground_truth_birads=m.ground_truth_label,
+                    biopsy_outcome=m.biopsy_outcome,
+                    is_malignant=m.is_malignant,
+                    key_morphology=m.key_morphology,
+                    patient_age=m.patient_age,
+                    er_status=m.er_status,
+                    clinical_action_taken=m.clinical_action_taken,
+                    thumbnail_svg=m.thumbnail_svg,
+                )
+                for m in cbr_res.matches
+            ],
+        )
+
     # --- NLP Impression (LLM with template fallback) ---
-    context = _build_context(features, label, meaning, recommendation, er, mass)
+    context = _build_context(features, label, meaning, recommendation, er, mass, cbr_section)
     fallback = (
         _template_impression(features, code, label, recommendation, er)
         if mass else
@@ -174,6 +200,7 @@ def build_report(
         features=rows,
         birads=BiRadsSection(category=label, rationale=rationale,
                              recommendation=recommendation),
+        cbr=cbr_section,
         er=er,
         impression=impression,
     )
@@ -186,7 +213,7 @@ def build_report(
     }
 
 
-def _build_context(features, label, meaning, recommendation, er, mass) -> str:
+def _build_context(features, label, meaning, recommendation, er, mass, cbr=None) -> str:
     lines = [
         f"Mass detected: {'yes' if mass else 'no'}",
         f"Circularity: {features.circularity:.2f}",
@@ -198,6 +225,8 @@ def _build_context(features, label, meaning, recommendation, er, mass) -> str:
         f"Assigned category: {label} — {meaning}",
         f"Recommended step: {recommendation}",
     ]
+    if cbr is not None:
+        lines.append(f"Case-Based Reasoning (CBR) concordance: {cbr.concordance}")
     if er is not None:
         lines.append(
             f"ER prediction: {er.er_result} "
@@ -224,16 +253,27 @@ def _render_plaintext(doc: ReportDocument) -> str:
         f"   Recommendation: {doc.birads.recommendation}",
         "",
     ]
+    if doc.cbr is not None:
+        out += [
+            "4. CASE-BASED REASONING (CBR) PRECEDENTS",
+            f"   Concordance: {doc.cbr.concordance}",
+            f"   Recommendation: {doc.cbr.recommendation}",
+        ]
+        for m in doc.cbr.matches:
+            out.append(
+                f"   - Case {m.case_id} ({m.similarity_percentage}% match, {m.ground_truth_birads}): {m.biopsy_outcome}"
+            )
+        out.append("")
     if doc.er is not None:
         out += [
-            "4. ER STATUS PREDICTION (Tier 4)",
+            "5. ER STATUS PREDICTION (Tier 4)",
             f"   Prediction: {doc.er.er_result}",
             f"   Probability (ER+): {round(doc.er.probability_positive * 100)}%",
             f"   Confidence: {doc.er.confidence}",
             f"   Inputs: {doc.er.inputs_summary}",
             "",
         ]
-    out += ["5. IMPRESSION", doc.impression]
+    out += ["6. IMPRESSION", doc.impression]
     return "\n".join(out)
 
 
