@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiCheckCircle, FiCpu, FiDownload, FiPrinter, FiSave } from "react-icons/fi";
 import CbrPanel from "./CbrPanel";
 
@@ -13,9 +13,107 @@ function SectionTitle({ n, children }) {
   );
 }
 
+const VIEW_NAMES = ["CC View", "MLO View"];
+
+function SegmentationPanel({ caption, src, accent }) {
+  return (
+    <div className="min-w-0">
+      <div
+        className={`mb-1.5 text-[11px] font-bold uppercase tracking-wide ${
+          accent ? "text-brand-600" : "text-slate-400"
+        }`}
+      >
+        {caption}
+      </div>
+      <div
+        className={`relative aspect-[3/4] overflow-hidden rounded-xl border-2 bg-black ${
+          accent ? "border-brand-400" : "border-slate-200"
+        }`}
+      >
+        {src ? (
+          <img
+            src={src}
+            alt={caption}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        ) : (
+          <div className="grid h-full place-items-center px-2 text-center text-xs italic text-slate-400">
+            Result unavailable
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SegmentationResults({ result, files }) {
+  const segmentationViews = useMemo(
+    () =>
+      VIEW_NAMES.map((view) => {
+        const analyzed = result?.analyzed_views?.find((item) => item.view === view);
+        return {
+          view,
+          original: files?.[view] || null,
+          overlay: analyzed?.overlay_image_base64
+            ? `data:image/png;base64,${analyzed.overlay_image_base64}`
+            : null,
+          mask: analyzed?.mask_image_base64
+            ? `data:image/png;base64,${analyzed.mask_image_base64}`
+            : null,
+        };
+      }),
+    [files, result]
+  );
+  const originalUrls = useMemo(
+    () =>
+      segmentationViews.map((view) => ({
+        ...view,
+        original: view.original ? URL.createObjectURL(view.original) : null,
+      })),
+    [segmentationViews]
+  );
+
+  useEffect(
+    () => () => {
+      originalUrls.forEach((view) => {
+        if (view.original) URL.revokeObjectURL(view.original);
+      });
+    },
+    [originalUrls]
+  );
+
+  return (
+    <section className="mt-6 border-t border-slate-100 pt-5">
+      <h3 className="mb-4 text-sm font-bold text-slate-800">
+        AI Segmentation Results
+      </h3>
+      <div className="space-y-6">
+        {originalUrls.map((view) => (
+          <div key={view.view}>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              {view.view}
+            </h4>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <SegmentationPanel caption="Input · Original" src={view.original} />
+              <SegmentationPanel
+                caption="Attention Overlay"
+                src={view.overlay}
+                accent
+              />
+              <SegmentationPanel caption="Output · Binary Mask" src={view.mask} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function ReportStep({
   document: doc,
   cbrResult,
+  result,
+  files,
   generator,
   value,
   onChange,
@@ -27,6 +125,23 @@ export default function ReportStep({
 }) {
   const isNlp = (generator || "").startsWith("nlp");
   const [exporting, setExporting] = useState(false);
+  const segmentationViews = useMemo(
+    () =>
+      VIEW_NAMES.map((view) => {
+        const analyzed = result?.analyzed_views?.find((item) => item.view === view);
+        return {
+          view,
+          original: files?.[view] || null,
+          overlay: analyzed?.overlay_image_base64
+            ? `data:image/png;base64,${analyzed.overlay_image_base64}`
+            : null,
+          mask: analyzed?.mask_image_base64
+            ? `data:image/png;base64,${analyzed.mask_image_base64}`
+            : null,
+        };
+      }),
+    [files, result]
+  );
 
   const cbrPayload =
     cbrResult ||
@@ -45,7 +160,12 @@ export default function ReportStep({
     try {
       // Lazy-load jsPDF only when needed (keeps the main bundle small).
       const { exportReportPdf } = await import("@/lib/exportPdf");
-      exportReportPdf({ document: doc, impression: value, generator });
+      await exportReportPdf({
+        document: doc,
+        impression: value,
+        generator,
+        segmentationViews,
+      });
     } finally {
       setExporting(false);
     }
@@ -82,6 +202,8 @@ export default function ReportStep({
               ))}
             </div>
           )}
+
+          <SegmentationResults result={result} files={files} />
 
           {/* 1. Segmentation */}
           {doc?.segmentation && (

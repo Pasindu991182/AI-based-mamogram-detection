@@ -14,7 +14,34 @@ const LIGHT = [148, 163, 184];
  * @param {string} opts.impression the (possibly edited) impression text
  * @param {string} opts.generator  generator name (for the footer badge)
  */
-export function exportReportPdf({ document: doc, impression, generator }) {
+function readAsDataUrl(blob) {
+  if (typeof blob === "string") return Promise.resolve(blob);
+  if (!blob) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Could not read a report image."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function resolveSegmentationViews(views = []) {
+  return Promise.all(
+    views.map(async (view) => ({
+      ...view,
+      original: await readAsDataUrl(view.original),
+      overlay: await readAsDataUrl(view.overlay),
+      mask: await readAsDataUrl(view.mask),
+    }))
+  );
+}
+
+export async function exportReportPdf({
+  document: doc,
+  impression,
+  generator,
+  segmentationViews = [],
+}) {
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
@@ -110,15 +137,80 @@ export function exportReportPdf({ document: doc, impression, generator }) {
     y += 4;
   };
 
+  const addSegmentationPanel = (caption, src, x, width, accent) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7);
+    pdf.setTextColor(...(accent ? TEAL : LIGHT));
+    pdf.text(caption.toUpperCase(), x, y);
+    const top = y + 5;
+    const height = 105;
+    pdf.setDrawColor(...(accent ? TEAL : [226, 232, 240]));
+    pdf.setLineWidth(0.8);
+    pdf.setFillColor(0, 0, 0);
+    pdf.rect(x, top, width, height, "FD");
+    if (src) {
+      const props = pdf.getImageProperties(src);
+      const scale = Math.min(width / props.width, height / props.height);
+      const imageW = props.width * scale;
+      const imageH = props.height * scale;
+      pdf.addImage(
+        src,
+        props.fileType || "PNG",
+        x + (width - imageW) / 2,
+        top + (height - imageH) / 2,
+        imageW,
+        imageH
+      );
+    } else {
+      pdf.setFont("helvetica", "italic");
+      pdf.setFontSize(7);
+      pdf.setTextColor(...LIGHT);
+      pdf.text("Result unavailable", x + width / 2, top + height / 2, {
+        align: "center",
+      });
+    }
+  };
+
+  // ---- AI Segmentation Results ----
+  if (segmentationViews.length) {
+    heading(1, "AI Segmentation Results");
+    const panelGap = 8;
+    const panelW = (pageW - 2 * M - 2 * panelGap) / 3;
+    for (const view of segmentationViews) {
+      ensure(145);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(...DARK);
+      pdf.text(view.view, M, y);
+      y += 12;
+      addSegmentationPanel("Input · Original", view.original, M, panelW, false);
+      addSegmentationPanel(
+        "Attention Overlay",
+        view.overlay,
+        M + panelW + panelGap,
+        panelW,
+        true
+      );
+      addSegmentationPanel(
+        "Output · Binary Mask",
+        view.mask,
+        M + 2 * (panelW + panelGap),
+        panelW,
+        false
+      );
+      y += 120;
+    }
+  }
+
   // ---- 1. Segmentation ----
   if (doc?.segmentation) {
-    heading(1, "Segmentation · Tier 1 — Attention U-Net");
+    heading(2, "Segmentation · Tier 1 — Attention U-Net");
     paragraph(doc.segmentation);
   }
 
   // ---- 2. Morphological features ----
   if (doc?.features?.length) {
-    heading(2, "Morphological Feature Extraction · Tier 2 (worst-case CC/MLO)");
+    heading(3, "Morphological Feature Extraction · Tier 2 (worst-case CC/MLO)");
     autoTable(pdf, {
       startY: y,
       margin: { left: M, right: M },
@@ -134,7 +226,7 @@ export function exportReportPdf({ document: doc, impression, generator }) {
 
   // ---- 3. BI-RADS ----
   if (doc?.birads) {
-    heading(3, "BI-RADS Classification · Tier 3 — Atlas-driven rule engine");
+    heading(4, "BI-RADS Classification · Tier 3 — Atlas-driven rule engine");
     paragraph(`Assigned category: ${doc.birads.category}`, {
       bold: true,
       color: [15, 23, 42],
@@ -148,7 +240,7 @@ export function exportReportPdf({ document: doc, impression, generator }) {
 
   // ---- 4. Case-Based Reasoning (CBR) Precedents ----
   if (doc?.cbr) {
-    heading(4, "Case-Based Reasoning (CBR) · Historical Biopsy Precedents");
+    heading(5, "Case-Based Reasoning (CBR) · Historical Biopsy Precedents");
     paragraph(`Precedent Concordance: ${doc.cbr.concordance}`, { bold: true });
     paragraph(`ACR Recommendation: ${doc.cbr.recommendation}`);
     if (doc.cbr.matches?.length) {
@@ -178,7 +270,7 @@ export function exportReportPdf({ document: doc, impression, generator }) {
 
   // ---- 5. ER status ----
   if (doc?.er) {
-    heading(5, "ER Status Prediction · Tier 5 — ensemble model");
+    heading(6, "ER Status Prediction · Tier 5 — ensemble model");
     autoTable(pdf, {
       startY: y,
       margin: { left: M, right: M },
@@ -198,7 +290,7 @@ export function exportReportPdf({ document: doc, impression, generator }) {
   }
 
   // ---- 6. Impression ----
-  heading(6, "Impression");
+  heading(7, "Impression");
   paragraph(impression || doc?.impression || "—");
 
   // ---- Footer on every page ----
