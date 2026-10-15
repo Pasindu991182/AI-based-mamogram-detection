@@ -279,6 +279,8 @@ export default function Study() {
             <ReportStep
               document={reportDoc}
               cbrResult={result?.cbr_result}
+              result={result}
+              files={{ "CC View": cc, "MLO View": mlo }}
               generator={reportGen}
               value={reportText}
               onChange={setReportText}
