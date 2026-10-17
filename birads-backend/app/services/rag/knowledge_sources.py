@@ -27,4 +27,15 @@ WEB_URLS = [
     "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2797737/",
     # ---- Receptor testing (Tier 5 ER prediction) ----
     "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10791807/",
+    # ---- Breast Ultrasound: Morphology and Imaging Features ----
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6169997/",
+
+    # ---- BI-RADS Category 3: Probably Benign Findings ----
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC5787219/",
+
+    # ---- WHO: Guide to Cancer Early Diagnosis ----
+    "https://www.who.int/publications/i/item/9789241511940",
+
+    # ---- WHO: Mammography Screening Recommendations ----
+    "https://www.who.int/publications/i/item/9789241507936",
 ]
